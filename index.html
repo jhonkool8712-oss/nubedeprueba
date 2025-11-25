@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Gestor de Pedidos - Hamburguesería</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#ff6b35;--muted:#9aa4b2;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;background:linear-gradient(180deg,#071025 0%,#071427 50%);color:#e6eef6;padding:28px}
+    .container{max-width:980px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{margin:0;font-size:20px}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    form{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type=text],input[type=number],select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:var(--glass);color:inherit}
+    .full{grid-column:1/ -1}
+    .actions{display:flex;gap:8px}
+    button{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#071427;font-weight:700;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:600}
+    .list{margin-top:16px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:14px}
+    th{color:var(--muted);font-size:12px}
+    .qty{width:72px}
+    .right{text-align:right}
+    .small{font-size:12px;color:var(--muted)}
+    .controls{display:flex;gap:8px;align-items:center}
+    .search{padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
+    .summary{display:flex;gap:12px;align-items:center}
+    .pill{background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:999px;font-size:13px}
+    footer{margin-top:14px;color:var(--muted);font-size:13px}
+    @media (max-width:720px){form{grid-template-columns:1fr} .qty{width:56px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Gestor de Pedidos — Hamburguesería</h1>
+      <div class="summary">
+        <div class="pill" id="count">Pedidos: 0</div>
+        <div class="pill" id="recaudo">Total recaudado: $0</div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2 style="margin-top:0;font-size:16px">Crear / editar pedido</h2>
+      <form id="orderForm">
+        <div>
+          <label for="cliente">Nombre del cliente</label>
+          <input type="text" id="cliente" required placeholder="Ej: Juan Pérez">
+        </div>
+        <div>
+          <label for="telefono">Teléfono (opcional)</label>
+          <input type="text" id="telefono" placeholder="Ej: 3125554422">
+        </div>
+
+        <div>
+          <label for="sencilla">Sencilla (precio fijo)</label>
+          <input type="number" id="sencilla" min="0" value="0">
+        </div>
+        <div>
+          <label for="doble">Doble (precio fijo)</label>
+          <input type="number" id="doble" min="0" value="0">
+        </div>
+        <div>
+          <label for="mixta">Mixta (precio fijo)</label>
+          <input type="number" id="mixta" min="0" value="0">
+        </div>
+        <div>
+          <label for="nota">Nota (opcional)</label>
+          <input type="text" id="nota" placeholder="Sin cebolla, sin mayonesa...">
+        </div>
+
+        <div class="full actions">
+          <button type="submit" id="submitBtn">Añadir pedido</button>
+          <button type="button" id="clearBtn" class="ghost">Limpiar</button>
+          <button type="button" id="exportBtn" class="ghost">Exportar JSON</button>
+          <button type="button" id="importBtn" class="ghost">Importar JSON</button>
+        </div>
+      </form>
+
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div class="controls">
+          <input class="search" id="search" placeholder="Buscar por cliente o nota...">
+          <select id="sort">
+            <option value="new">Más recientes</option>
+            <option value="old">Más antiguos</option>
+            <option value="total_desc">Mayor total</option>
+            <option value="total_asc">Menor total</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="clearAll" class="ghost">Borrar todos</button>
+          <button id="demo" class="ghost">Cargar demo</button>
+        </div>
+      </div>
+
+      <div class="list card" style="margin-top:12px;padding:0;overflow:auto">
+        <table id="ordersTable">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th class="qty">Senc.</th>
+              <th class="qty">Dob.</th>
+              <th class="qty">Mix.</th>
+              <th>Nota</th>
+              <th class="right">Total</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+
+      <footer>
+        <p class="small">Precios por defecto: Sencilla $8,000 — Doble $12,000 — Mixta $10,000. Puedes cambiarlos en el código si deseas otra moneda o valores.</p>
+      </footer>
+    </section>
+  </div>
+
+  <input type="file" id="fileInput" accept="application/json" style="display:none">
+
+  <script>
+    /* ---------- Configuración ---------- */
+    const PRICES = { sencilla: 8000, doble: 12000, mixta: 10000 };
+    const STORAGE_KEY = 'hamburgueseria_pedidos_v1';
+
+    /* ---------- Estado y utilidades ---------- */
+    let orders = []; // {id, cliente, telefono, sencilla, doble, mixta, nota, createdAt}
+    let editingId = null;
+
+    const $ = sel => document.querySelector(sel);
+    const fmt = n => n.toLocaleString();
+
+    function loadOrders(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        orders = raw ? JSON.parse(raw) : [];
+      }catch(e){orders = []}
+    }
+    function saveOrders(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+    }
+
+    function calcTotal(o){
+      return (o.sencilla||0)*PRICES.sencilla + (o.doble||0)*PRICES.doble + (o.mixta||0)*PRICES.mixta;
+    }
+
+    /* ---------- Render y manipulación ---------- */
+    function renderOrders(){
+      const tbody = $('#ordersBody');
+      tbody.innerHTML = '';
+
+      // Buscar y ordenar
+      const q = $('#search').value.trim().toLowerCase();
+      let list = orders.filter(o => {
+        if(!q) return true;
+        return (o.cliente||'').toLowerCase().includes(q) || (o.nota||'').toLowerCase().includes(q) || (o.telefono||'').toLowerCase().includes(q);
+      });
+
+      const sort = $('#sort').value;
+      if(sort === 'new') list = list.sort((a,b)=>b.createdAt - a.createdAt);
+      if(sort === 'old') list = list.sort((a,b)=>a.createdAt - b.createdAt);
+      if(sort === 'total_desc') list = list.sort((a,b)=>calcTotal(b)-calcTotal(a));
+      if(sort === 'total_asc') list = list.sort((a,b)=>calcTotal(a)-calcTotal(b));
+
+      let totalSum = 0;
+      for(const o of list){
+        const tr = document.createElement('tr');
+        const total = calcTotal(o);
+        totalSum += total;
+
+        tr.innerHTML = `
+          <td><strong>${escapeHtml(o.cliente||'')}</strong><div class="small">${escapeHtml(o.telefono||'')}</div></td>
+          <td class="qty">${o.sencilla||0}</td>
+          <td class="qty">${o.doble||0}</td>
+          <td class="qty">${o.mixta||0}</td>
+          <td>${escapeHtml(o.nota||'')}</td>
+          <td class="right">$${fmt(total)}</td>
+          <td>
+            <button class="ghost" onclick="onEdit('${o.id}')">Editar</button>
+            <button class="ghost" onclick="onDelete('${o.id}')">Borrar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      $('#count').textContent = `Pedidos: ${orders.length}`;
+      $('#recaudo').textContent = `Total recaudado: $${fmt(totalSum)}`;
+    }
+
+    /* ---------- Eventos del formulario ---------- */
+    function resetForm(){
+      $('#orderForm').reset();
+      editingId = null;
+      $('#submitBtn').textContent = 'Añadir pedido';
+    }
+
+    function gatherForm(){
+      return {
+        cliente: $('#cliente').value.trim(),
+        telefono: $('#telefono').value.trim(),
+        sencilla: Number($('#sencilla').value) || 0,
+        doble: Number($('#doble').value) || 0,
+        mixta: Number($('#mixta').value) || 0,
+        nota: $('#nota').value.trim()
+      };
+    }
+
+    function onSubmitForm(e){
+      e.preventDefault();
+      const data = gatherForm();
+      if(!data.cliente) return alert('El nombre del cliente es obligatorio.');
+      if(data.sencilla + data.doble + data.mixta <= 0) return alert('Debe pedir al menos una hamburguesa.');
+
+      if(editingId){
+        const idx = orders.findIndex(x=>x.id===editingId);
+        if(idx>=0){
+          orders[idx] = {...orders[idx], ...data};
+        }
+      } else {
+        orders.push({id: 'id_'+Date.now(), ...data, createdAt: Date.now()});
+      }
+      saveOrders();
+      renderOrders();
+      resetForm();
+    }
+
+    /* ---------- Editar / Borrar ---------- */
+    function onEdit(id){
+      const o = orders.find(x=>x.id===id);
+      if(!o) return;
+      editingId = id;
+      $('#cliente').value = o.cliente || '';
+      $('#telefono').value = o.telefono || '';
+      $('#sencilla').value = o.sencilla || 0;
+      $('#doble').value = o.doble || 0;
+      $('#mixta').value = o.mixta || 0;
+      $('#nota').value = o.nota || '';
+      $('#submitBtn').textContent = 'Guardar cambios';
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    window.onEdit = onEdit; // para botones inline
+
+    function onDelete(id){
+      if(!confirm('¿Borrar este pedido?')) return;
+      orders = orders.filter(x=>x.id!==id);
+      saveOrders();
+      renderOrders();
+    }
+    window.onDelete = onDelete;
+
+    /* ---------- Import / Export / Demo ---------- */
+    function exportJSON(){
+      const dataStr = JSON.stringify(orders, null, 2);
+      const blob = new Blob([dataStr], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'pedidos_hamburgueseria.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importJSONFile(file){
+      const reader = new FileReader();
+      reader.onload = e => {
+        try{
+          const parsed = JSON.parse(e.target.result);
+          if(!Array.isArray(parsed)) throw new Error('Formato inválido');
+          // asegurar IDs y createdAt
+          const normalized = parsed.map(p=>({
+            id: p.id || 'id_'+Date.now()+Math.random().toString(36).slice(2,6),
+            cliente: p.cliente||'Cliente',
+            telefono: p.telefono||'',
+            sencilla: Number(p.sencilla)||0,
+            doble: Number(p.doble)||0,
+            mixta: Number(p.mixta)||0,
+            nota: p.nota||'',
+            createdAt: p.createdAt||Date.now()
+          }));
+          orders = orders.concat(normalized);
+          saveOrders();
+          renderOrders();
+          alert('Importación completada.');
+        }catch(err){
+          alert('No se pudo importar: '+err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function loadDemo(){
+      orders = [
+        {id:'demo1',cliente:'María',telefono:'3101112222',sencilla:2,doble:1,mixta:0,nota:'Sin pepinillos',createdAt:Date.now()-86400000},
+        {id:'demo2',cliente:'Carlos',telefono:'3203334444',sencilla:0,doble:2,mixta:1,nota:'Para llevar',createdAt:Date.now()-3600000}
+      ];
+      saveOrders();
+      renderOrders();
+    }
+
+    /* ---------- Helpers ---------- */
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s=>({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\"':'&quot;','\'' :'&#39;'
+      })[s]);
+    }
+
+    /* ---------- Inicialización ---------- */
+    document.addEventListener('DOMContentLoaded', ()=>{
+      loadOrders();
+      renderOrders();
+
+      $('#orderForm').addEventListener('submit', onSubmitForm);
+      $('#clearBtn').addEventListener('click', resetForm);
+      $('#search').addEventListener('input', renderOrders);
+      $('#sort').addEventListener('change', renderOrders);
+      $('#clearAll').addEventListener('click', ()=>{
+        if(!confirm('¿Borrar todos los pedidos?')) return; orders = []; saveOrders(); renderOrders();
+      });
+      $('#exportBtn').addEventListener('click', exportJSON);
+      $('#demo').addEventListener('click', ()=>{ if(confirm('¿Cargar pedidos de demostración?')) loadDemo(); });
+
+      $('#importBtn').addEventListener('click', ()=>$('#fileInput').click());
+      $('#fileInput').addEventListener('change', e=>{
+        const f = e.target.files[0]; if(!f) return; importJSONFile(f); e.target.value='';
+      });
+
+    });
+  </script>
+</body>
+</html>
